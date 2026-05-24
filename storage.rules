@@ -1,0 +1,37 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+    function isAdmin() { return isSignedIn() && request.auth.token.role == 'admin'; }
+    function isVendor() { return isSignedIn() && request.auth.token.role == 'vendor'; }
+
+    // Public read for product / store imagery.
+    match /products/{vendorId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if (isVendor() && uid() == vendorId) || isAdmin();
+    }
+    match /stores/{vendorId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if (isVendor() && uid() == vendorId) || isAdmin();
+    }
+
+    match /banners/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Private business docs — vendor + admin only.
+    match /vendorDocs/{vendorId}/{allPaths=**} {
+      allow read: if (isVendor() && uid() == vendorId) || isAdmin();
+      allow write: if (isVendor() && uid() == vendorId) || isAdmin();
+    }
+
+    // User-uploaded avatars.
+    match /users/{userId}/{allPaths=**} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && uid() == userId;
+    }
+  }
+}

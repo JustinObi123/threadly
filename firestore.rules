@@ -1,0 +1,133 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+    function role() { return request.auth.token.role; }
+    function isAdmin() { return isSignedIn() && role() == 'admin'; }
+    function isVendor() { return isSignedIn() && role() == 'vendor'; }
+    function isDriver() { return isSignedIn() && role() == 'driver'; }
+
+    // Users: each user reads/writes their own doc; admins read all.
+    match /users/{userId} {
+      allow read: if isSignedIn() && (uid() == userId || isAdmin());
+      allow create: if isSignedIn() && uid() == userId;
+      allow update: if isSignedIn() && (uid() == userId || isAdmin());
+      allow delete: if isAdmin();
+
+      match /addresses/{addressId} {
+        allow read, write: if isSignedIn() && uid() == userId;
+      }
+    }
+
+    // Public catalog: anyone can read approved products, categories, banners, stores.
+    match /categories/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /banners/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /stores/{storeId} {
+      allow read: if true;
+      allow create: if isVendor() && request.resource.data.vendorId == uid();
+      allow update: if (isVendor() && resource.data.vendorId == uid()) || isAdmin();
+      allow delete: if isAdmin();
+    }
+    match /products/{productId} {
+      allow read: if resource.data.approvalStatus == 'approved' || isAdmin()
+                  || (isVendor() && resource.data.vendorId == uid());
+      allow create: if isVendor() && request.resource.data.vendorId == uid();
+      allow update, delete: if (isVendor() && resource.data.vendorId == uid()) || isAdmin();
+
+      match /variants/{variantId} {
+        allow read: if true;
+        allow write: if (isVendor() && get(/databases/$(database)/documents/products/$(productId)).data.vendorId == uid())
+                     || isAdmin();
+      }
+    }
+
+    // Cart: one doc per user.
+    match /carts/{userId} {
+      allow read, write: if isSignedIn() && uid() == userId;
+    }
+
+    // Orders: customers see their own, vendors see their subOrders, admins see all.
+    // Writes for status are done by Cloud Functions (admin SDK bypasses rules).
+    match /orders/{orderId} {
+      allow read: if isAdmin()
+                  || (isSignedIn() && resource.data.customerId == uid());
+      allow create, update, delete: if false; // Functions only.
+
+      match /subOrders/{subOrderId} {
+        allow read: if isAdmin()
+                    || get(/databases/$(database)/documents/orders/$(orderId)).data.customerId == uid()
+                    || (isVendor() && resource.data.vendorId == uid());
+        allow update: if (isVendor() && resource.data.vendorId == uid()
+                          && request.resource.data.diff(resource.data).affectedKeys()
+                              .hasOnly(['status', 'statusHistory', 'trackingNumber', 'carrier']))
+                       || isAdmin();
+        allow create, delete: if false;
+      }
+    }
+
+    match /vendors/{vendorId} {
+      allow read: if isSignedIn() && (uid() == vendorId || isAdmin());
+      allow create: if isSignedIn() && uid() == vendorId;
+      allow update: if isAdmin()
+                    || (isSignedIn() && uid() == vendorId
+                        && !request.resource.data.diff(resource.data).affectedKeys()
+                            .hasAny(['status', 'commissionRate', 'payoutBalance']));
+      allow delete: if isAdmin();
+    }
+
+    match /drivers/{driverId} {
+      allow read: if isSignedIn() && (uid() == driverId || isAdmin());
+      allow create: if isSignedIn() && uid() == driverId;
+      allow update: if isAdmin()
+                    || (isSignedIn() && uid() == driverId
+                        && !request.resource.data.diff(resource.data).affectedKeys()
+                            .hasAny(['status', 'earningsBalance']));
+    }
+
+    match /deliveryAssignments/{id} {
+      allow read: if isAdmin() || (isDriver() && resource.data.driverId == uid());
+      allow update: if isDriver() && resource.data.driverId == uid()
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['status', 'timeline']);
+      allow create, delete: if false;
+    }
+
+    match /reviews/{id} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.customerId == uid();
+      allow update, delete: if (isSignedIn() && resource.data.customerId == uid()) || isAdmin();
+    }
+
+    match /coupons/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin()
+                   || (isVendor() && request.resource.data.scope == 'vendor'
+                       && request.resource.data.vendorId == uid());
+    }
+
+    match /platformSettings/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Payments / payouts: Cloud Functions only.
+    match /payments/{id}  { allow read: if isAdmin(); allow write: if false; }
+    match /payouts/{id}   { allow read: if isAdmin() || (isVendor() && resource.data.vendorId == uid()); allow write: if false; }
+    match /refunds/{id}   { allow read: if isAdmin(); allow write: if false; }
+
+    match /notifications/{id} {
+      allow read: if isSignedIn() && resource.data.userId == uid();
+      allow update: if isSignedIn() && resource.data.userId == uid()
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readAt']);
+      allow create, delete: if isAdmin();
+    }
+  }
+}

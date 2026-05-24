@@ -1,0 +1,37 @@
+name: threadly
+repository: https://example.com/threadly
+
+packages:
+  - apps/*
+  - packages/*
+
+command:
+  bootstrap:
+    runPubGetInParallel: true
+  version:
+    linkToCommits: false
+
+scripts:
+  analyze:
+    run: melos exec -- "dart analyze ."
+    description: Analyze every package.
+
+  format:
+    run: melos exec -- "dart format ."
+    description: Format every package.
+
+  test:
+    run: melos exec --dir-exists=test -- "flutter test"
+    description: Run tests in every package that has them.
+
+  run:customer:
+    run: cd apps/customer_app && flutter run
+    description: Launch the customer app on the default device.
+
+  run:customer:web:
+    run: cd apps/customer_app && flutter run -d chrome
+    description: Launch the customer app in Chrome.
+
+  build:functions:
+    run: cd functions && npm run build
+    description: Build Cloud Functions TypeScript.

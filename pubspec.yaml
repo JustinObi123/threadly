@@ -1,0 +1,10 @@
+name: threadly_workspace
+publish_to: none
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+
+# Workspace root. Real packages live under apps/* and packages/*.
+# Managed via Melos (see melos.yaml). This file exists only so
+# `melos bootstrap` has a place to anchor.
+dev_dependencies:
+  melos: ^6.2.0

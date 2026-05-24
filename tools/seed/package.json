@@ -1,0 +1,7 @@
+{
+  "name": "threadly-seed",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": { "start": "node seed.js" },
+  "dependencies": { "firebase-admin": "^12.6.0" }
+}

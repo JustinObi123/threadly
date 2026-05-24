@@ -1,0 +1,45 @@
+# ── Flutter / Dart ────────────────────────────────────────────────
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+**/generated_plugin_registrant.dart
+*.iml
+
+# ── IDE ───────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+
+# ── Melos ─────────────────────────────────────────────────────────
+pubspec_overrides.yaml
+
+# ── Firebase ──────────────────────────────────────────────────────
+# Generated per environment — each clone runs `flutterfire configure`
+**/firebase_options.dart
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
+
+# ── Secrets (NEVER COMMIT) ────────────────────────────────────────
+**/serviceAccount*.json
+**/*service-account*.json
+**/sa-key*.json
+**/google-services.json
+**/GoogleService-Info.plist
+.env
+.env.*
+
+# ── Node (cloud functions + seed scripts) ─────────────────────────
+**/node_modules/
+functions/lib/
+
+# ── Extracted reference assets (Foodie APK we used for design ref) ─
+tools/apk_assets/
+
+# ── OS ────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
