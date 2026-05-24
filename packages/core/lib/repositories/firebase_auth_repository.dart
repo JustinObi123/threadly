@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../models/app_user.dart';
 import 'auth_repository.dart';
 
@@ -68,10 +69,29 @@ class FirebaseAuthRepository implements AuthRepository {
 
   @override
   Future<AppUser> signInWithGoogle() async {
-    // Web: popup. Mobile: needs google_sign_in package; left as Phase 1b TODO.
-    final provider = fb.GoogleAuthProvider();
-    final cred = await _auth.signInWithProvider(provider);
-    return (await _resolve(cred.user))!;
+    final provider = fb.GoogleAuthProvider()
+      ..addScope('email')
+      ..addScope('profile')
+      ..setCustomParameters({'prompt': 'select_account'});
+
+    final fb.UserCredential cred;
+    if (kIsWeb) {
+      // Web: opens a Google popup. Make sure popups aren't blocked for localhost.
+      cred = await _auth.signInWithPopup(provider);
+    } else {
+      // Android/iOS: opens a Chrome custom tab. Requires google_sign_in
+      // plugin + per-platform Google OAuth setup for production polish, but
+      // the basic provider flow works for testing.
+      cred = await _auth.signInWithProvider(provider);
+    }
+    final user = await _resolve(cred.user);
+    if (user == null) {
+      throw fb.FirebaseAuthException(
+        code: 'google-no-user',
+        message: 'Google returned no user.',
+      );
+    }
+    return user;
   }
 
   @override

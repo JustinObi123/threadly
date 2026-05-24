@@ -23,10 +23,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     await ref.read(authControllerProvider.notifier).signIn(_email.text.trim(), _password.text);
+    _toastErrorIfAny();
+  }
+
+  Future<void> _google() async {
+    await ref.read(authControllerProvider.notifier).signInWithGoogle();
+    _toastErrorIfAny(silentCodes: const {
+      'popup-closed-by-user',
+      'cancelled-popup-request',
+      'web-context-canceled',
+      'user-cancelled',
+    });
+  }
+
+  void _toastErrorIfAny({Set<String> silentCodes = const {}}) {
     final err = ref.read(authControllerProvider).error;
-    if (err != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$err')));
-    }
+    if (err == null || !mounted) return;
+    final code = err is dynamic && (err as dynamic).code is String
+        ? (err as dynamic).code as String
+        : '';
+    if (silentCodes.contains(code)) return;
+    final msg = err is dynamic && (err as dynamic).message is String
+        ? (err as dynamic).message as String
+        : err.toString();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: AppColors.danger),
+    );
   }
 
   @override
@@ -34,6 +56,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final state = ref.watch(authControllerProvider);
     final t = Theme.of(context).textTheme;
     return Scaffold(
+      backgroundColor: Tokens.background(context),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -76,10 +99,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     const SizedBox(height: 12),
                     OutlinedButton.icon(
-                      onPressed: state.isLoading
-                          ? null
-                          : () => ref.read(authControllerProvider.notifier).signInWithGoogle(),
-                      icon: const Icon(Icons.g_mobiledata, size: 28),
+                      onPressed: state.isLoading ? null : _google,
+                      icon: const AppIcon(AppIcons.google, size: 20),
                       label: const Text('Continue with Google'),
                     ),
                     const SizedBox(height: 20),

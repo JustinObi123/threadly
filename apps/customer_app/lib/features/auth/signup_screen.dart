@@ -78,6 +78,24 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       onPressed: _submit,
                     ),
                     const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: state.isLoading
+                          ? null
+                          : () async {
+                              await ref.read(authControllerProvider.notifier).signInWithGoogle();
+                              final err = ref.read(authControllerProvider).error;
+                              if (err != null && mounted) {
+                                final code = (err is dynamic && (err as dynamic).code is String) ? (err as dynamic).code as String : '';
+                                const silent = {'popup-closed-by-user', 'cancelled-popup-request', 'web-context-canceled', 'user-cancelled'};
+                                if (!silent.contains(code)) {
+                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$err')));
+                                }
+                              }
+                            },
+                      icon: const AppIcon(AppIcons.google, size: 20),
+                      label: const Text('Continue with Google'),
+                    ),
+                    const SizedBox(height: 20),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
